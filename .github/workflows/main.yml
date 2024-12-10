@@ -31,5 +31,3 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
     - name: Update .env
       run: cp .env.example .env
-    - name: run migrations
-      run: php artisan migrate
