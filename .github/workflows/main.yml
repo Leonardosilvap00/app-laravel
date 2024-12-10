@@ -1,53 +1,31 @@
-name: A2Deploy
-
+name: Publish Website to CPanel
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 jobs:
-  build:
+  FTP-Deploy-Action:
+    name: FTP-Deploy-Action
     runs-on: ubuntu-latest
     steps:
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 16
-      - name: Copy .env
-        run: cp .env.example .env
-      - name: Install composer Dependencies
-        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
-      - name: Install node dependencies
-        run: | 
-          if [ -e package-lock.json ]; then
-          npm ci
-          else
-          npm i
-          fi
-      - name: Setup Project
-        run: |
-          npm run build
-      - name: Deploy PHP to Server
-        if: ${{ success() }}
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          port: ${{ secrets.SSH_PORT }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            cd domains
-            cd laravel-space.com
-            git pull
-            php composer.phar install
-            php artisan migrate --force
-      - name: Install SSH key
-        run: |
-          mkdir -p ~/.ssh/
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -t rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-      - name: Copy Build Files to Target Server
-        run: |
-          rsync -r -e "ssh -p ${{ secrets.SSH_PORT }}" ${{ github.workspace }}/public/build/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/domains/laravel-space.com/public/build
+    - uses: actions/checkout@v2.1.0
+      with:
+        fetch-depth: 2 
+    - name: Build assets
+      run: npm install && npm run build
+
+    - name: Install PHP and Composer
+      uses: shivammathur/setup-php@v2
+      with:
+          php-version: '8.3' # Adjust to match the PHP version used by your Laravel project
+          tools: 'composer'
+
+    - name: Install PHP dependencies
+      run: composer install --no-dev --optimize-autoloader
+        
+    - name: FTP-Deploy-Action
+      uses: SamKirkland/FTP-Deploy-Action@4.3.3
+      with:
+        server: ${{ secrets.SERVER }}
+        username: ${{ secrets.USERNAME }}
+        password: ${{ secrets.PASSWORD }}
